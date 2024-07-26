@@ -8,23 +8,25 @@ import net.minecraft.world.item.TieredItem;
 import net.minecraft.world.item.ArmorMaterial;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import com.google.common.collect.Multimap;
-import net.minecraft.world.entity.ai.attributes.Attribute;
+import com.google.common.collect.HashMultimap;
 
 public class MaterialStatsExtractor {
 
     public static class MaterialStats {
-        public final int durability;
-        public final float attack;
-        public final int defense;
-        public final int harvestTier;
-        public final int enchantability;
-        public final float efficiency;
+        public int durability;
+        public float attack;
+        public int defense;
+        public int harvestTier;
+        public int enchantability;
+        public float efficiency;
         public final String id;
         public final String name;
         public final String color;
+        public int itemCount;
 
         public MaterialStats(int durability, float attack, int defense, int harvestTier, int enchantability, float efficiency, String id, String name, String color) {
             this.durability = durability;
@@ -36,6 +38,28 @@ public class MaterialStatsExtractor {
             this.id = id;
             this.name = name;
             this.color = color;
+            this.itemCount = 1; // Initial count of items contributing to this material
+        }
+
+        public void addStats(MaterialStats other) {
+            this.durability += other.durability;
+            this.attack += other.attack;
+            this.defense += other.defense;
+            this.harvestTier += other.harvestTier;
+            this.enchantability += other.enchantability;
+            this.efficiency += other.efficiency;
+            this.itemCount += 1;
+        }
+
+        public void averageStats() {
+            if (this.itemCount > 0) {
+                this.durability /= this.itemCount;
+                this.attack /= this.itemCount;
+                this.defense /= this.itemCount;
+                this.harvestTier /= this.itemCount;
+                this.enchantability /= this.itemCount;
+                this.efficiency /= this.itemCount;
+            }
         }
     }
 
@@ -47,8 +71,6 @@ public class MaterialStatsExtractor {
         int enchantability = 0;
         float efficiency = 0.0f;
 
-        System.out.println("Processing Item: " + item);
-
         if (item instanceof SwordItem swordItem) {
             Tier tier = swordItem.getTier();
             if (tier != null) {
@@ -57,7 +79,6 @@ public class MaterialStatsExtractor {
                 enchantability = tier.getEnchantmentValue();
                 efficiency = tier.getSpeed();
                 attack = (float) getAttributeModifierValue(new ItemStack(swordItem), Attributes.ATTACK_DAMAGE, EquipmentSlot.MAINHAND);
-                System.out.println("SwordItem - Attack: " + attack);
             }
         } else if (item instanceof ArmorItem armorItem) {
             ArmorMaterial armorMaterial = armorItem.getMaterial();
@@ -65,7 +86,6 @@ public class MaterialStatsExtractor {
                 durability = armorMaterial.getDurabilityForType(armorItem.getType());
                 defense = armorMaterial.getDefenseForType(armorItem.getType());
                 enchantability = armorMaterial.getEnchantmentValue();
-                System.out.println("ArmorItem - Defense: " + defense);
             }
         } else if (item instanceof TieredItem tieredItem) {
             Tier tier = tieredItem.getTier();
@@ -75,7 +95,6 @@ public class MaterialStatsExtractor {
                 enchantability = tier.getEnchantmentValue();
                 efficiency = tier.getSpeed();
                 attack = (float) getAttributeModifierValue(new ItemStack(tieredItem), Attributes.ATTACK_DAMAGE, EquipmentSlot.MAINHAND);
-                System.out.println("TieredItem - Attack: " + attack);
             }
         }
 
@@ -85,7 +104,8 @@ public class MaterialStatsExtractor {
     private static double getAttributeModifierValue(ItemStack itemStack, Attribute attribute, EquipmentSlot slot) {
         double value = 0.0;
         if (itemStack != null && attribute != null) {
-            Multimap<Attribute, AttributeModifier> modifiers = itemStack.getAttributeModifiers(slot);
+            Multimap<Attribute, AttributeModifier> modifiers = HashMultimap.create();
+            modifiers.putAll(itemStack.getAttributeModifiers(slot));
             if (modifiers != null) {
                 for (AttributeModifier modifier : modifiers.get(attribute)) {
                     value += modifier.getAmount();
